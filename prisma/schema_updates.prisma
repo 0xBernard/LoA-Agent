@@ -1,0 +1,49 @@
+
+// ... (previous content kept, appending new models to AGENT schema) ...
+
+/// Smart Contract Analysis - The technical "Auditor" memory
+model SmartContract {
+  id              String   @id @default(cuid())
+  protocolId      String
+  name            String   @db.VarChar(255) // e.g. "Pool.sol"
+  filePath        String   @db.Text         // e.g. "aave-v3-core/contracts/protocol/pool/Pool.sol"
+  contractType    String?  // e.g. "Logic", "Storage", "Interface"
+  
+  // Analysis Content
+  summary         String?  @db.Text // AI generated high-level purpose
+  technicalDoc    String?  @db.Text // Generated MD technical doc
+  
+  // Structural Data (Json)
+  // { 
+  //   "functions": [{name, visibility, mutability, summary}], 
+  //   "events": [...], 
+  //   "modifiers": [...] 
+  // }
+  structure       Json?    
+  
+  lastAnalyzedAt  DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([protocolId])
+  @@map("smart_contracts")
+  @@schema("agent")
+}
+
+/// Service Provider / Entity Reports - The "Historian" memory
+model EntityReport {
+  id          String   @id @default(cuid())
+  entityId    String   // Links to ProtocolEntity.id
+  title       String
+  url         String   // Link to PDF or Forum Post
+  publishedAt DateTime
+  summary     String?  @db.Text
+  reportType  String?  // "Risk Review", "Financial Report", "Update"
+  
+  entity      ProtocolEntity @relation(fields: [entityId], references: [id])
+  
+  @@index([entityId])
+  @@index([publishedAt])
+  @@map("entity_reports")
+  @@schema("agent")
+}

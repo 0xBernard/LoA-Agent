@@ -1,0 +1,49 @@
+{
+  "name": "loa-agent",
+  "version": "1.0.0",
+  "description": "Autonomous Documentation Agent for Library of Alexandria",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "agent:run": "tsx src/index.ts",
+    "agent:daemon": "tsx src/index.ts --daemon",
+    "agent:onboard": "tsx src/index.ts --onboard",
+    "agent:onboard-file": "tsx src/scripts/onboard-from-file.ts",
+    "agent:discord": "tsx src/scripts/discord-bot.ts",
+    "agent:export": "tsx src/index.ts --export",
+    "agent:drafts": "tsx src/index.ts --drafts",
+    "agent:status": "tsx src/index.ts --status",
+    "agent:rlm": "tsx src/index.ts --rlm",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "tool:next": "tsx src/tools-cli.ts next-task",
+    "tool:submit": "tsx src/tools-cli.ts submit-task",
+    "tool:onboard": "tsx src/tools-cli.ts onboard",
+    "agent:auto": "tsx src/harness.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.9.0",
+    "dotenv": "^16.4.7",
+    "discord.js": "^14.22.1",
+    "isolated-vm": "^5.0.1",
+    "node-cron": "^4.1.0",
+    "p-limit": "^4.0.0",
+    "simple-git": "^3.27.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.17",
+    "@types/node-cron": "^3.0.11",
+    "prisma": "^6.9.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

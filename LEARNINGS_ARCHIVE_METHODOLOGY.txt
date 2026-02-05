@@ -1,0 +1,35 @@
+# Loa Agent: Archive Methodology & Style Guide
+
+This document captures the specific framing and methodology requested by the user for building the "Library of Alexandria" protocol archives.
+
+## 1. Core Objective: The "One-Stop Shop"
+The goal is not just documentation, but a **Comprehensive Archive**. It must be the single most detailed resource for a protocol, surpassing the official documentation in depth, context, and "living" data.
+
+## 2. Pillar 1: The Historian (Human & Governance)
+*   **Focus:** The "Why" and "Who".
+*   **Key Players:** Exhaustive profiling of Service Providers (SPs), Lead Delegates, and Key Contributors.
+*   **Entity Profiles:** Must include:
+    *   In-depth bios and roles (Growth vs. Risk vs. Tech).
+    *   Historical contributions and "Library of Work" (links to reports, audits, and analysis).
+    *   Financial relationships (compensation, grant history).
+    *   Voting stance and political alignment.
+*   **Governance Archival:** Mining the database (Discourse/Snapshot) to track the evolution of the protocol through key votes and debates.
+
+## 3. Pillar 2: The Auditor (Technical & Code)
+*   **Focus:** The "How" and "Metal".
+*   **Code-Level Analysis:** Moving beyond READMEs to read raw source code (`.sol`, `.ts`).
+*   **Smart Contract Breakdowns:** 
+    *   Line-by-line logic explanations.
+    *   Architectural mapping (e.g., Hub-and-Spoke, Library delegation).
+    *   Mathematical deep-dives (e.g., Scaled balances, interest rate curves).
+*   **Developer Guides:** Practical guides derived from actual codebase patterns and test files.
+
+## 4. Methodology: The "Living" Loop
+*   **Data Priority:** Local Database (Forum/Governance) > GitHub (Source Code) > Web Fetch (Official Docs/Fallback).
+*   **Evolving Nature:** The archive is never "finished." It must index new forum posts, detect new service providers, and update technical docs as code changes.
+*   **Structure:** Hierarchical and navigable. Categories and subcategories should reflect the protocol's specific architecture (e.g., V3 vs. V4, Core vs. Periphery).
+
+## 5. Style & Framing
+*   **Better than Official:** If the official docs say *what* a feature is, the Archive explains *how* it's implemented and *why* it was voted in.
+*   **Crossover:** Linking technical docs (Code) to governance docs (Proposals) to show the full lifecycle of a feature.
+*   **Layman + Developer:** Providing a clear path for both high-level ecosystem understanding and low-level technical auditing.

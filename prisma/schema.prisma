@@ -1,0 +1,872 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+  previewFeatures = ["fullTextSearchPostgres", "multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["governance", "public", "tokens", "agent"]
+}
+
+// ============================================================================
+// PUBLIC SCHEMA (Backend-owned, agent reads)
+// ============================================================================
+
+model Protocol {
+  id              String        @id @default(cuid())
+  slug            String        @db.VarChar(255)
+  title           String
+  imageUrls       String[]
+  logoUrl         String?
+  order           Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  contentOrigin   ContentOrigin @default(PROTOCOL)
+  snapshotSpaceId String?       @unique
+  family          String?
+  governanceSpace Space?
+  categories      Category[]
+  pages           Page[]
+  agentContext    ProtocolAgentContext?
+
+  @@unique([slug, contentOrigin])
+  @@index([order])
+  @@index([slug])
+  @@map("protocol")
+  @@schema("public")
+}
+
+model Page {
+  id            String       @id @default(cuid())
+  fileName      String
+  title         String
+  slug          String
+  content       String
+  order         Int
+  protocolId    String
+  categoryId    String?
+  subcategoryId String?
+  category      Category?    @relation(fields: [categoryId], references: [id])
+  protocol      Protocol     @relation(fields: [protocolId], references: [id])
+  subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id])
+
+  @@unique([slug, protocolId, categoryId, subcategoryId])
+  @@index([order])
+  @@map("page")
+  @@schema("public")
+}
+
+model Category {
+  id            String        @id @default(cuid())
+  slug          String
+  title         String
+  order         Int           @default(0)
+  protocolId    String
+  parentId      String?
+  contentPath   String        @default("")
+  imageUrls     String[]
+  parent        Category?     @relation("SubCategories", fields: [parentId], references: [id])
+  children      Category[]    @relation("SubCategories")
+  protocol      Protocol      @relation(fields: [protocolId], references: [id])
+  pages         Page[]
+  subcategories Subcategory[]
+
+  @@index([order])
+  @@map("category")
+  @@schema("public")
+}
+
+model Subcategory {
+  id          String   @id @default(cuid())
+  slug        String
+  title       String
+  order       Int      @default(0)
+  categoryId  String
+  contentPath String   @default("")
+  imageUrls   String[]
+  pages       Page[]
+  category    Category @relation(fields: [categoryId], references: [id])
+
+  @@index([order])
+  @@map("subcategory")
+  @@schema("public")
+}
+
+// ============================================================================
+// GOVERNANCE SCHEMA (Backend-owned, agent reads)
+// ============================================================================
+
+model Space {
+  id               String           @id
+  name             String
+  about            String?
+  network          String
+  symbol           String
+  members          String[]
+  admins           String[]
+  strategies       Json?
+  filters          Json?
+  plugins          Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  protocolId       String?          @unique
+  forumBaseUrl     String?
+  forumCategoryIds Int[]            @default([])
+  forumTags        String[]         @default([])
+  discourseTopics  DiscourseTopic[]
+  proposals        Proposal[]
+  proposalRollups  ProposalRollup[]
+  delegateAlignments DelegateAlignment[]
+  delegateMetrics  DelegateMetric[]
+  protocol         Protocol?        @relation(fields: [protocolId], references: [id])
+
+  @@map("governance_spaces")
+  @@schema("governance")
+}
+
+model Proposal {
+  id                      String               @id
+  ipfs                    String               @unique
+  title                   String
+  body                    String?
+  choices                 String[]
+  start                   DateTime
+  end                     DateTime
+  snapshot                String?
+  state                   String?
+  author                  String
+  authorPublicTag         String?              @db.Text @map("author_public_tag")
+  authorPublicTagCategory String?              @db.Text @map("author_public_tag_category")
+  snapshotWallet          String?
+  snapshotAuthorRaw       String?
+  created                 DateTime
+  scores                  Float[]
+  scoresByStrategy        Json?
+  scoresTotal             Float?
+  scoresUpdatedAt         DateTime?
+  plugins                 Json?
+  network                 String
+  strategies              Json?
+  spaceId                 String
+  dbCreatedAt             DateTime             @default(now())
+  dbUpdatedAt             DateTime             @updatedAt
+  type                    String?
+  calculatedResults       Json?
+  calculatedTotalVp       Float?
+  resultsCalculatedAt     DateTime?
+  quorum                  Float?
+  quorumType              String?
+  executionTxHash         String?
+  executionState          String?
+  executionScheduledAt    DateTime?
+  discussionUrl           String?
+  discussionUrlNormalized String?
+  forumAuthorRaw          String?
+  bodyDeclaredAuthor      String?
+  externalUrl             String?
+  space                   Space                @relation(fields: [spaceId], references: [id])
+  votes                   Vote[]
+  discussions             ProposalDiscussion[]
+  rollup                  ProposalRollup?
+
+  @@index([spaceId])
+  @@index([state])
+  @@index([end])
+  @@index([author])
+  @@index([discussionUrlNormalized])
+  @@map("governance_proposals")
+  @@schema("governance")
+}
+
+model EntityMap {
+  identifier       String
+  type             IdentityType
+  canonicalEntity  String?
+  resolutionSource ResolutionSource @default(manual)
+
+  @@id([identifier, type])
+  @@index([canonicalEntity])
+  @@map("entity_map")
+  @@schema("governance")
+}
+
+model ProposalRollup {
+  proposalId             String   @id
+  spaceId                String
+  executor               String?
+  votingPowerSupply      Float?
+  totalParticipating     Float?
+  quorumThreshold        Float?
+  voteDifferentialThreshold Float?
+  turnoutRatio           Float?
+  forVotes               Float?
+  againstVotes           Float?
+  abstainVotes           Float?
+  forRatio               Float?
+  againstRatio           Float?
+  abstainRatio           Float?
+  quorumMet              Boolean?
+  voteDifferentialMet    Boolean?
+  majorityMet            Boolean?
+  computedAt             DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  proposal Proposal @relation(fields: [proposalId], references: [id])
+  space    Space    @relation(fields: [spaceId], references: [id])
+
+  @@index([spaceId])
+  @@map("proposal_rollups")
+  @@schema("governance")
+}
+
+model Vote {
+  id                  String                @id
+  ipfs                String                @unique
+  voter               String
+  spaceId             String? // Made optional for migration safety, or required if we trust backfill.
+  created             DateTime
+  choice              Json
+  vp                  Float
+  vpByStrategy        Float[]
+  vpState             String?
+  proposalId          String
+  dbCreatedAt         DateTime              @default(now())
+  proposal            Proposal              @relation(fields: [proposalId], references: [id])
+
+  // Relation to Scoped TokenHolder
+  // Note: spaceId must be present to link to scoped TokenHolder
+  delegate            TokenHolder?          @relation("DelegateVotes", fields: [voter, spaceId], references: [address, spaceId])
+
+  @@index([proposalId])
+  @@index([voter])
+  @@map("governance_votes")
+  @@schema("governance")
+}
+
+model TokenHolder {
+  id                      String                @id @default(cuid())
+  address                 String                @db.VarChar(42)
+  spaceId                 String                @map("protocolId") @default("aave.eth") // Maps to existing 'protocolId' column, defaults for migration
+  firstSeen               DateTime              @default(now())
+  lastUpdated             DateTime              @updatedAt
+  publicTag               String?               @db.Text @map("public_tag")
+  publicTagCategory       String?               @db.Text @map("public_tag_category")
+  selfVotingPower         Decimal?              @db.Decimal(78, 0)
+  delegatedVotingPower    Decimal?              @db.Decimal(78, 0)
+  totalVotingPower        Decimal?              @db.Decimal(78, 0)
+  uniqueDelegators        Int                   @default(0)
+  hasActiveDelegations    Boolean               @default(false)
+  lastBalanceChangeAt     DateTime?
+  lastDelegationChangeAt  DateTime?
+  aliases                 DelegateAlias[]
+  snapshots               DelegateSnapshot[]
+  votes                   Vote[]                @relation("DelegateVotes")
+  votingPower             VotingPower[]
+  inboundDelegations      TokenDelegation[]     @relation("DelegationsToHolder")
+  outboundDelegations     TokenDelegation[]     @relation("DelegationsFromHolder")
+  balances                TokenHolderBalance[]
+  alignmentsAsA           DelegateAlignment[]   @relation("DelegateAlignmentA")
+  alignmentsAsB           DelegateAlignment[]   @relation("DelegateAlignmentB")
+  delegateMetrics         DelegateMetric[]
+
+  @@unique([address, spaceId]) // Composite unique key
+  @@index([address])
+  @@index([lastUpdated])
+  @@index([hasActiveDelegations])
+  @@map("token_holders")
+  @@schema("governance")
+}
+
+model TokenDelegation {
+  id                   String          @id @default(cuid())
+  delegatorId          String
+  delegateId           String
+  delegatorAddress     String          @db.VarChar(42)
+  delegateAddress      String          @db.VarChar(42)
+  tokenAddress         String          @db.VarChar(42)
+  delegationType       DelegationType
+  delegatedVotingPower Decimal?        @db.Decimal(78, 0)
+  active               Boolean         @default(true)
+  blockNumber          BigInt?
+  blockTimestamp       DateTime?
+  activatedAt          DateTime        @default(now())
+  deactivatedAt        DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  delegator            TokenHolder     @relation("DelegationsFromHolder", fields: [delegatorId], references: [id])
+  delegate             TokenHolder     @relation("DelegationsToHolder", fields: [delegateId], references: [id])
+
+  @@index([delegatorId, active])
+  @@index([delegateId, active])
+  @@index([tokenAddress])
+  @@index([delegateAddress, tokenAddress, active])
+  @@map("token_delegations")
+  @@schema("governance")
+}
+
+model TokenHolderBalance {
+  id           String       @id @default(cuid())
+  holderId     String
+  tokenAddress String       @db.VarChar(42)
+  tokenSymbol  String?      @db.VarChar(32)
+  balance      Decimal?     @db.Decimal(78, 0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  holder       TokenHolder  @relation(fields: [holderId], references: [id])
+
+  @@unique([holderId, tokenAddress])
+  @@index([tokenAddress])
+  @@map("token_holder_balances")
+  @@schema("governance")
+}
+
+model VotingPower {
+  id               String      @id @default(cuid())
+  delegateId       String
+  votingPower      String      @db.VarChar(78)
+  propositionPower String      @db.VarChar(78)
+  timestamp        DateTime    @default(now())
+  delegate         TokenHolder @relation(fields: [delegateId], references: [id])
+
+  @@index([delegateId])
+  @@index([timestamp])
+  @@index([delegateId, timestamp])
+  @@map("voting_powers")
+  @@schema("governance")
+}
+
+model DelegateAlignment {
+  id                String       @id @default(cuid())
+  spaceId           String
+  delegateAId       String
+  delegateBId       String
+  overlapCount      Int
+  agreementCount    Int
+  disagreementCount Int
+  abstainCount      Int
+  cosineSimilarity  Float?
+  jaccardSimilarity Float?
+  agreementRatio    Float?
+  computedAt        DateTime     @default(now())
+  vectorVersion     Int          @default(1)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  space     Space       @relation(fields: [spaceId], references: [id])
+  delegateA TokenHolder @relation("DelegateAlignmentA", fields: [delegateAId], references: [id])
+  delegateB TokenHolder @relation("DelegateAlignmentB", fields: [delegateBId], references: [id])
+
+  @@unique([spaceId, delegateAId, delegateBId])
+  @@index([spaceId, computedAt])
+  @@index([delegateAId, spaceId])
+  @@index([delegateBId, spaceId])
+  @@map("delegate_alignments")
+  @@schema("governance")
+}
+
+model DelegateMetric {
+  id                   String      @id @default(cuid())
+  spaceId              String
+  delegateId           String
+  windowDays           Int         @default(365)
+  participation        Float
+  consistency          Float?
+  activityScore        Float
+  alignmentScore       Float?
+  votesCast            Int
+  proposalsAuthored    Int
+  proposalsVoted       Int
+  proposalsVotedRecent Int
+  totalProposals       Int
+  totalRecentProposals Int
+  computedAt           DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  space    Space       @relation(fields: [spaceId], references: [id])
+  delegate TokenHolder @relation(fields: [delegateId], references: [id])
+
+  @@unique([spaceId, delegateId, windowDays])
+  @@index([spaceId, windowDays])
+  @@index([delegateId])
+  @@map("delegate_metrics")
+  @@schema("governance")
+}
+
+model DelegateSnapshot {
+  id          String      @id @default(cuid())
+  delegateId  String
+  blockNumber BigInt
+  vp          Float
+  timestamp   DateTime
+  delegate    TokenHolder @relation(fields: [delegateId], references: [id])
+
+  @@index([delegateId, blockNumber])
+  @@map("delegate_snapshots")
+  @@schema("governance")
+}
+
+model VotingCluster {
+  id             String           @id @default(cuid())
+  algorithm      String
+  label          Int
+  centroidVector Json?
+  createdAt      DateTime         @default(now())
+  addresses      AddressCluster[]
+
+  @@map("voting_clusters")
+  @@schema("governance")
+}
+
+model AddressCluster {
+  voterAddress String
+  clusterId    String
+  distance     Float
+  cluster      VotingCluster @relation(fields: [clusterId], references: [id])
+
+  @@id([voterAddress, clusterId])
+  @@index([clusterId])
+  @@map("address_clusters")
+  @@schema("governance")
+}
+
+model DiscourseTopic {
+  id             String             @id @default(cuid())
+  topicId        Int                @unique
+  slug           String
+  title          String
+  url            String
+  categoryId     Int?
+  tags           String[]
+  createdAt      DateTime
+  lastPostedAt   DateTime?
+  replyCount     Int
+  likeCount      Int?
+  authorUsername String?
+  lastSyncedAt   DateTime           @default(now())
+  spaceId        String?
+  authorId       String?
+  author         ForumAuthor?       @relation(fields: [authorId], references: [id])
+  space          Space?             @relation(fields: [spaceId], references: [id])
+  posts          ForumPost[]
+  proposalLinks  ProposalDiscussion[]
+
+  @@index([spaceId])
+  @@index([authorId])
+  @@map("discourse_topics")
+  @@schema("governance")
+}
+
+model ServiceProvider {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  displayName      String   @map("display_name")
+  category         String
+  authorUsernames  String[] @default([]) @map("author_usernames")
+  createdAt        DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt        DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  @@map("service_providers")
+  @@schema("governance")
+}
+
+model ProposalDiscussion {
+  id               String           @id @default(cuid())
+  proposalId       String
+  source           DiscussionSource
+  externalId       String?
+  url              String
+  title            String
+  excerpt          String?
+  createdAt        DateTime?
+  lastActivityAt   DateTime?
+  replyCount       Int?
+  lastSyncedAt     DateTime         @default(now())
+  discourseTopicId String?
+  discourseTopic   DiscourseTopic?  @relation(fields: [discourseTopicId], references: [id])
+  proposal         Proposal         @relation(fields: [proposalId], references: [id])
+
+  @@unique([proposalId, source, externalId])
+  @@index([proposalId])
+  @@index([source])
+  @@map("proposal_discussions")
+  @@schema("governance")
+}
+
+model TokenLogo {
+  id           String   @id @default(cuid())
+  tokenAddress String   @unique
+  thumbnailUrl String
+  smallUrl     String
+  largeUrl     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("token_logos")
+  @@schema("tokens")
+}
+
+model DelegateAlias {
+  id              String            @id @default(cuid())
+  delegateId      String
+  aliasType       DelegateAliasType
+  alias           String
+  normalizedAlias String            @db.VarChar(255)
+  verifiedAt      DateTime?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  delegate        TokenHolder       @relation(fields: [delegateId], references: [id])
+
+  @@unique([aliasType, normalizedAlias])
+  @@index([delegateId])
+  @@map("delegate_aliases")
+  @@schema("governance")
+}
+
+model ForumAuthor {
+  id                 String          @id @default(cuid())
+  discourseUserId    Int?            @unique
+  username           String          @unique
+  normalizedUsername String          @unique @db.VarChar(255)
+  displayName        String?
+  avatarTemplate     String?
+  profileUrl         String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  discourseTopics    DiscourseTopic[]
+  forumPosts         ForumPost[]
+
+  @@map("forum_authors")
+  @@schema("governance")
+}
+
+model ForumPost {
+  id                String             @id
+  discoursePostId   Int                @unique
+  topicId           String
+  postNumber        Int
+  replyToPostNumber Int?
+  authorUsername    String?
+  authorDisplayName String?
+  authorAddress     String?
+  rawContent        String?
+  cookedContent     String?
+  url               String?
+  source            DiscussionSource
+  createdAt         DateTime
+  updatedAt         DateTime?
+  lastEditedAt      DateTime?
+  likeCount         Int?
+  authorId          String?
+  author            ForumAuthor?       @relation(fields: [authorId], references: [id])
+  topic             DiscourseTopic     @relation(fields: [topicId], references: [id])
+
+  @@unique([topicId, postNumber])
+  @@index([authorId])
+  @@index([authorUsername, createdAt])
+  @@map("forum_posts")
+  @@schema("governance")
+}
+
+// ============================================================================
+// AGENT SCHEMA - Autonomous Documentation Agent Memory
+// ============================================================================
+
+/// Long-term memory for a Protocol - stores the agent's synthesized understanding
+model ProtocolAgentContext {
+  id                  String    @id @default(cuid())
+  protocolId          String    @unique
+  technicalSummary    String?   @db.Text // Architecture summary from repo analysis
+  governanceState     String?   @db.Text // Current governance state synthesis
+  lastProcessedPostId Int       @default(0) // Cursor for forum post processing
+  lastProcessedAt     DateTime?
+  // Onboarding tracking
+  isOnboarded         Boolean   @default(false)
+  onboardedAt         DateTime?
+  lastFullSyncAt      DateTime?
+  // Forum processing config
+  forumDelayDays      Int       @default(7)  // Minimum days before processing
+  forumQuietDays      Int       @default(2)  // Days without replies before processing
+  updatedAt           DateTime  @updatedAt
+  createdAt           DateTime  @default(now())
+
+  protocol Protocol @relation(fields: [protocolId], references: [id])
+
+  @@map("protocol_agent_context")
+  @@schema("agent")
+}
+
+/// Observations about entities (delegates, authors) derived from forum activity
+model EntityObservation {
+  id               String   @id @default(cuid())
+  entityIdentifier String   // TokenHolder.address or ForumAuthor.username
+  entityType       EntityObservationType
+  content          String   @db.Text // The observation itself
+  sourcePostId     String?  // Reference to ForumPost.id if applicable
+  confidenceScore  Int      @default(50) // 0-100 confidence
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime? // Optional TTL for observations
+
+  @@index([entityIdentifier, entityType])
+  @@index([createdAt])
+  @@map("entity_observations")
+  @@schema("agent")
+}
+
+/// Work queue for agent tasks
+model AgentTask {
+  id          String          @id @default(cuid())
+  type        AgentTaskType
+  protocolId  String?
+  payload     Json?           // Task-specific data
+  status      AgentTaskStatus @default(PENDING)
+  priority    Int             @default(0) // Higher = more urgent
+  attempts    Int             @default(0)
+  maxAttempts Int             @default(3)
+  lastError   String?         @db.Text
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([status, priority])
+  @@index([type, status])
+  @@map("agent_tasks")
+  @@schema("agent")
+}
+
+/// Execution log for agent runs
+model AgentExecutionLog {
+  id            String   @id @default(cuid())
+  taskId        String?
+  skillName     String
+  generatedCode String?  @db.Text
+  success       Boolean
+  errorMessage  String?  @db.Text
+  executionMs   Int?
+  tokensUsed    Int?
+  createdAt     DateTime @default(now())
+
+  @@index([taskId])
+  @@index([createdAt])
+  @@map("agent_execution_logs")
+  @@schema("agent")
+}
+
+/// Source documents from official docs, whitepapers, etc.
+model ProtocolSourceDoc {
+  id           String        @id @default(cuid())
+  protocolId   String
+  sourceType   SourceDocType
+  sourceUrl    String?
+  title        String
+  content      String        @db.Text
+  section      String?       // For hierarchical docs (e.g., "core-features/flash-loans")
+  fetchedAt    DateTime
+  createdAt    DateTime      @default(now())
+
+  @@index([protocolId, sourceType])
+  @@index([protocolId, section])
+  @@map("protocol_source_docs")
+  @@schema("agent")
+}
+
+/// Entity profiles (delegates, service providers, key users)
+model ProtocolEntity {
+  id             String             @id @default(cuid())
+  protocolId     String
+  entityType     ProtocolEntityType
+  identifier     String             // address, username, or slug
+  displayName    String
+  bio            String?            @db.Text
+  profileContent String?            @db.Text // Generated wiki content
+  isPublished    Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  
+  reports        EntityReport[]
+
+  @@unique([protocolId, entityType, identifier])
+  @@index([protocolId, entityType])
+  @@map("protocol_entities")
+  @@schema("agent")
+}
+
+/// Draft pages for review before publishing
+model AgentDraft {
+  id           String      @id @default(cuid())
+  protocolId   String
+  pagePath     String      // e.g., "aave/core-features/flash-loans"
+  title        String
+  content      String      @db.Text
+  draftType    DraftType   @default(PAGE) // PAGE or ENTITY_PROFILE
+  status       DraftStatus @default(PENDING)
+  sourceRefs   String[]    // IDs of source docs/posts used
+  reviewNotes  String?     @db.Text
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([protocolId, pagePath])
+  @@index([protocolId, status])
+  @@index([status])
+  @@map("agent_drafts")
+  @@schema("agent")
+}
+
+/// Smart Contract Analysis - The technical "Auditor" memory
+model SmartContract {
+  id              String   @id @default(cuid())
+  protocolId      String
+  name            String   @db.VarChar(255) // e.g. "Pool.sol"
+  filePath        String   @db.Text         // e.g. "aave-v3-core/contracts/protocol/pool/Pool.sol"
+  contractType    String?  // e.g. "Logic", "Storage", "Interface"
+  
+  // Analysis Content
+  summary         String?  @db.Text // AI generated high-level purpose
+  technicalDoc    String?  @db.Text // Generated MD technical doc
+  
+  // Structural Data (Json)
+  // { 
+  //   "functions": [{name, visibility, mutability, summary}], 
+  //   "events": [...], 
+  //   "modifiers": [...] 
+  // }
+  structure       Json?    
+  
+  lastAnalyzedAt  DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([protocolId])
+  @@map("smart_contracts")
+  @@schema("agent")
+}
+
+/// Service Provider / Entity Reports - The "Historian" memory
+model EntityReport {
+  id          String   @id @default(cuid())
+  entityId    String   // Links to ProtocolEntity.id
+  title       String
+  url         String   // Link to PDF or Forum Post
+  publishedAt DateTime
+  summary     String?  @db.Text
+  reportType  String?  // "Risk Review", "Financial Report", "Update"
+  
+  entity      ProtocolEntity @relation(fields: [entityId], references: [id])
+  
+  @@index([entityId])
+  @@index([publishedAt])
+  @@map("entity_reports")
+  @@schema("agent")
+}
+
+enum ContentOrigin {
+  PROTOCOL
+  TECHNICAL_DOCS
+
+  @@schema("public")
+}
+
+enum DiscussionSource {
+  DISCOURSE
+  SNAPSHOT
+  OTHER
+
+  @@schema("governance")
+}
+
+enum DelegationType {
+  VOTING
+  PROPOSITION
+
+  @@schema("governance")
+}
+
+enum DelegateAliasType {
+  FORUM_USERNAME
+  SNAPSHOT_USERNAME
+  ENS
+  OTHER
+
+  @@schema("governance")
+}
+
+enum IdentityType {
+  wallet
+  forum_user
+
+  @@schema("governance")
+}
+
+enum ResolutionSource {
+  match
+  bio_link
+  body_extract
+  manual
+
+  @@schema("governance")
+}
+
+enum EntityObservationType {
+  DELEGATE_STANCE    // Political/voting position
+  DELEGATE_EXPERTISE // Technical expertise area
+  DELEGATE_ACTIVITY  // Activity pattern observation
+  AUTHOR_SENTIMENT   // Forum author sentiment
+  
+  @@schema("agent")
+}
+
+enum AgentTaskType {
+  FORUM_UPDATE       // Process new forum posts
+  REPO_ONBOARD       // Analyze a new protocol repo
+  GOVERNANCE_SUMMARY // Generate governance summary
+  ENTITY_PROFILE     // Build entity profile
+  PROTOCOL_DOCS      // Synthesize protocol documentation
+  
+  @@schema("agent")
+}
+
+enum AgentTaskStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  
+  @@schema("agent")
+}
+
+enum SourceDocType {
+  OFFICIAL_DOCS
+  README
+  WHITEPAPER
+  GITHUB_WIKI
+  
+  @@schema("agent")
+}
+
+enum ProtocolEntityType {
+  DELEGATE
+  SERVICE_PROVIDER
+  KEY_USER
+  
+  @@schema("agent")
+}
+
+enum DraftType {
+  PAGE
+  ENTITY_PROFILE
+  
+  @@schema("agent")
+}
+
+enum DraftStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PUBLISHED
+  
+  @@schema("agent")
+}
