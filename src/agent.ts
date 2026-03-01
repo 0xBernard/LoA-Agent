@@ -127,9 +127,19 @@ export async function getReadyForumPosts(
     forumDelayDays: context?.forumDelayDays ?? 7,
     forumQuietDays: context?.forumQuietDays ?? 2,
   };
+
+  // Resolve governance space so we only process this protocol's forum posts.
+  const protocol = await db.getProtocol(protocolId);
+  const spaceId = protocol?.governanceSpace?.id ?? undefined;
+
+  if (!spaceId) {
+    log.warn(`No governance space found for protocol ${protocolId}; skipping forum fetch`);
+    return [];
+  }
   
   // Fetch more posts than needed, then filter
   const posts = await db.getForumPostsAfter(lastProcessedId, {
+    spaceId,
     limit: limit * 3, // Fetch extra to account for filtering
   });
   

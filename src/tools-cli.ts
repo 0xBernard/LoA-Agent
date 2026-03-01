@@ -190,24 +190,26 @@ async function cmdSubmitTask(taskId: string, inputFile: string) {
         }
        log.info("Persisted Entity Profile");
   }
-  else if (result.page && result.page.content) {
-      // PROTOCOL_DOCS
-      const pageData = result as any;
-      await output.saveDraft(protocolId, pageData.page.path, {
-        title: pageData.page.title,
-        content: pageData.page.content,
-        draftType: 'PAGE',
-        sourceRefs: pageData.metadata?.sourceDocIds,
-      });
-      log.info("Persisted Documentation Page");
-  }
-  else if (result.technicalSummary) {
-      // REPO_ONBOARD
-      const repoData = result as any;
-      await db.upsertProtocolContext(protocolId, {
-        technicalSummary: repoData.technicalSummary,
-      });
-      log.info("Persisted Repo Analysis");
+  else {
+      const pageData = result as { page?: { path?: string; title?: string; content?: string }; metadata?: { sourceDocIds?: string[] } };
+      if (pageData.page?.content && pageData.page.path && pageData.page.title) {
+        // PROTOCOL_DOCS
+        await output.saveDraft(protocolId, pageData.page.path, {
+          title: pageData.page.title,
+          content: pageData.page.content,
+          draftType: 'PAGE',
+          sourceRefs: pageData.metadata?.sourceDocIds,
+        });
+        log.info("Persisted Documentation Page");
+      }
+      else if (result.technicalSummary) {
+          // REPO_ONBOARD
+          const repoData = result as any;
+          await db.upsertProtocolContext(protocolId, {
+            technicalSummary: repoData.technicalSummary,
+          });
+          log.info("Persisted Repo Analysis");
+      }
   }
 
   // Update Task Status

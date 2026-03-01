@@ -30,7 +30,6 @@
     "@prisma/client": "^6.9.0",
     "dotenv": "^16.4.7",
     "discord.js": "^14.22.1",
-    "isolated-vm": "^5.0.1",
     "node-cron": "^4.1.0",
     "p-limit": "^4.0.0",
     "simple-git": "^3.27.0",
