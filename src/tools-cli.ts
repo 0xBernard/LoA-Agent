@@ -217,6 +217,11 @@ async function cmdSubmitTask(taskId: string, inputFile: string) {
   log.info(`Task ${taskId} marked as COMPLETED`);
 }
 
+async function cmdFailTask(taskId: string, errorMessage: string) {
+  await db.updateTaskStatus(taskId, 'FAILED', errorMessage);
+  log.info(`Task ${taskId} marked as FAILED`);
+}
+
 async function cmdOnboard(slug: string, source: string) {
   const prisma = (await import('./lib/prisma.js')).default;
   
@@ -375,6 +380,13 @@ async function main() {
         }
         await cmdSubmitTask(args[1], args[2]);
         break;
+    case 'fail-task':
+        if (!args[1] || !args[2]) {
+            console.error("Usage: fail-task <taskId> <errorMessage>");
+            process.exit(1);
+        }
+        await cmdFailTask(args[1], args.slice(2).join(' '));
+        break;
     case 'onboard':
         // usage: onboard <slug> [repoUrl]
         if (!args[1]) {
@@ -384,7 +396,7 @@ async function main() {
         await cmdOnboard(args[1], args[2]);
         break;
     default:
-      console.log("Available commands: next-task, submit-task, onboard");
+      console.log("Available commands: next-task, submit-task, fail-task, onboard");
       break;
   }
 }

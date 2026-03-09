@@ -23,6 +23,7 @@
     "db:studio": "prisma studio",
     "tool:next": "tsx src/tools-cli.ts next-task",
     "tool:submit": "tsx src/tools-cli.ts submit-task",
+    "tool:fail": "tsx src/tools-cli.ts fail-task",
     "tool:onboard": "tsx src/tools-cli.ts onboard",
     "agent:auto": "tsx src/harness.ts"
   },
