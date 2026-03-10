@@ -9,7 +9,7 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-const writeActions = new Set([
+const writeActions = new Set<string>([
   'create',
   'createMany',
   'update',
@@ -17,9 +17,6 @@ const writeActions = new Set([
   'upsert',
   'delete',
   'deleteMany',
-  'executeRaw',
-  'executeRawUnsafe',
-  'runCommandRaw',
 ]);
 
 const agentWritableModels = new Set([
@@ -36,31 +33,35 @@ const agentWritableModels = new Set([
 
 const isWriteGuardEnabled = process.env.AGENT_DB_WRITE_GUARD !== 'off';
 
-export const prisma =
+const basePrisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: process.env.AGENT_LOG_LEVEL === 'debug' 
-      ? ['query', 'warn', 'error'] 
+    log: process.env.AGENT_LOG_LEVEL === 'debug'
+      ? ['query', 'warn', 'error']
       : ['error'],
   });
 
-if (isWriteGuardEnabled) {
-  prisma.$use(async (params, next) => {
-    if (writeActions.has(params.action)) {
-      const modelName = params.model ?? 'unknown';
-      if (!agentWritableModels.has(modelName)) {
-        throw new Error(`Write blocked by guard for model: ${modelName}`);
-      }
-    }
-    return next(params);
-  });
+if (!globalForPrisma.prisma) {
+  globalForPrisma.prisma = basePrisma;
 }
 
-globalForPrisma.prisma = prisma;
+export const prisma = isWriteGuardEnabled
+  ? basePrisma.$extends({
+      query: {
+        $allModels: {
+          async $allOperations({ model, operation, args, query }) {
+            if (writeActions.has(operation)) {
+              const modelName = model ?? 'unknown';
+              if (!agentWritableModels.has(modelName)) {
+                throw new Error(`Write blocked by guard for model: ${modelName}`);
+              }
+            }
+
+            return query(args);
+          },
+        },
+      },
+    })
+  : basePrisma;
 
 export default prisma;
-
-
-
-
-

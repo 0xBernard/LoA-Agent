@@ -63,24 +63,21 @@ async function main() {
 
   // 2. Analyze Forum Authors
   console.log('\n--- Top 20 Forum Authors ---');
-  const topAuthors = await prisma.forumPost.groupBy({
-    by: ['authorUsername'],
-    where: {
-      topic: { spaceId: spaceId }
-    },
-    _count: {
-      id: true
-    },
-    orderBy: {
-      _count: {
-        id: 'desc'
-      }
-    },
-    take: 20
-  });
+  const topAuthors = await prisma.$queryRaw<Array<{ author_username: string | null; post_count: bigint }>>`
+    SELECT
+      fp."authorUsername" AS author_username,
+      COUNT(*)::bigint AS post_count
+    FROM "governance"."forum_posts" fp
+    JOIN "governance"."discourse_topics" dt ON dt.id = fp."topicId"
+    WHERE dt."spaceId" = ${spaceId}
+      AND fp."authorUsername" IS NOT NULL
+    GROUP BY fp."authorUsername"
+    ORDER BY post_count DESC
+    LIMIT 20
+  `;
 
   for (const author of topAuthors) {
-    console.log(`${author.authorUsername}: ${author._count.id} posts`);
+    console.log(`${author.author_username}: ${Number(author.post_count)} posts`);
   }
 
   // 3. Analyze Delegates (TokenHolders with voting power)

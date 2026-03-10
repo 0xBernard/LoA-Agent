@@ -56,7 +56,7 @@ Based on the **"Ralph" architecture** from [ghuntley.com/ralph](https://ghuntley
 
 - Node.js 20+ (see `.nvmrc`)
 - PostgreSQL (same database as backend)
-- Gemini CLI authenticated: `gemini auth login`
+- Gemini authentication configured (recommended OAuth via `gemini auth login` or `gcloud auth application-default login`; API key env also supported)
 
 ### Installation
 
@@ -217,6 +217,7 @@ npm run db:generate
 - **[Design Decisions](docs/DECISIONS.md)** - Why we made the choices we did
 - **[Setup Guide](docs/SETUP.md)** - Detailed installation guide
 - **[Content Structure](/.gemini/CONTENT_STRUCTURE.md)** - Wiki page structure
+- **[Security Notes](SECURITY.md)** - `--yolo` runtime safety guidance
 
 ## References
 

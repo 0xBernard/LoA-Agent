@@ -400,29 +400,20 @@ export async function getDraftStats(protocolId: string): Promise<{
   published: number;
   total: number;
 }> {
-  const counts = await prisma.agentDraft.groupBy({
-    by: ['status'],
-    where: { protocolId },
-    _count: true,
-  });
-  
-  const stats = {
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    published: 0,
-    total: 0,
+  const [pending, approved, rejected, published] = await Promise.all([
+    prisma.agentDraft.count({ where: { protocolId, status: 'PENDING' } }),
+    prisma.agentDraft.count({ where: { protocolId, status: 'APPROVED' } }),
+    prisma.agentDraft.count({ where: { protocolId, status: 'REJECTED' } }),
+    prisma.agentDraft.count({ where: { protocolId, status: 'PUBLISHED' } }),
+  ]);
+
+  return {
+    pending,
+    approved,
+    rejected,
+    published,
+    total: pending + approved + rejected + published,
   };
-  
-  for (const count of counts) {
-    const key = count.status.toLowerCase() as keyof typeof stats;
-    if (key in stats) {
-      stats[key] = count._count;
-      stats.total += count._count;
-    }
-  }
-  
-  return stats;
 }
 
 

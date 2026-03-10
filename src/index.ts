@@ -12,7 +12,6 @@
  *   npm run agent:rlm -- --file=./input.txt --task="Summarize changes"  # RLM scaffold
  */
 
-import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import * as fs from 'fs/promises';

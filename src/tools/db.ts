@@ -485,14 +485,26 @@ export async function updateTaskStatus(
   status: TaskStatus,
   error?: string
 ): Promise<void> {
+  const data: Prisma.AgentTaskUpdateInput = { status };
+
+  if (status === 'RUNNING') {
+    data.startedAt = new Date();
+    data.attempts = { increment: 1 };
+    data.lastError = null;
+  }
+
+  if (status === 'COMPLETED') {
+    data.completedAt = new Date();
+    data.lastError = null;
+  }
+
+  if (status === 'FAILED' || status === 'PENDING') {
+    data.lastError = error ?? null;
+  }
+
   await prisma.agentTask.update({
     where: { id: taskId },
-    data: {
-      status,
-      ...(status === 'RUNNING' && { startedAt: new Date(), attempts: { increment: 1 } }),
-      ...(status === 'COMPLETED' && { completedAt: new Date() }),
-      ...(status === 'FAILED' && { lastError: error ?? null }),
-    },
+    data,
   });
 }
 
